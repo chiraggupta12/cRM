@@ -9,7 +9,6 @@ import Register from './pages/auth/Register';
 import Leads from './pages/leads/Leads';
 import LeadDetails from './pages/leads/LeadDetails';
 import NewLead from './pages/leads/NewLead';
-import Forms from './pages/forms/Forms';
 import DealsFlow from './pages/deals/DealsFlow';
 import Layout from './components/Layout';
 
@@ -35,7 +34,6 @@ function App() {
         <Route path="leads/new" element={<NewLead />} />
         <Route path="leads/:id" element={<LeadDetails />} />
         <Route path="deals" element={<DealsFlow />} />
-        <Route path="forms" element={<Forms />} />
       </Route>
       
       {/* Fallback */}
