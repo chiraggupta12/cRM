@@ -29,22 +29,9 @@ const Header: React.FC<HeaderProps> = ({ toggleSidebar, sidebarOpen }) => {
           >
             {sidebarOpen ? <X size={20} /> : <MenuIcon size={20} />}
           </button>
-          
-          <div className="relative max-w-md hidden md:block">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-            <input
-              type="text"
-              placeholder="Search..."
-              className="input !pl-10 md:w-64 lg:w-80"
-            />
-          </div>
         </div>
         
         <div className="flex items-center gap-3">
-          <button className="p-2 rounded-full hover:bg-muted transition-colors">
-            <Bell size={20} />
-          </button>
-          
           <div className="relative">
             <button 
               onClick={() => setUserMenuOpen(!userMenuOpen)}

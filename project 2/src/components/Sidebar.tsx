@@ -11,15 +11,12 @@ const Sidebar: React.FC = () => {
     { label: 'Dashboard', icon: <LayoutDashboard size={20} />, path: '/' },
     { label: 'Leads', icon: <Users size={20} />, path: '/leads' },
     { label: 'Deals Flow', icon: <KanbanSquare size={20} />, path: '/deals' },
-    { label: 'Contacts', icon: <Mail size={20} />, path: '/contacts' },
-    { label: 'Forms', icon: <FileText size={20} />, path: '/forms' },
   ];
 
   return (
     <div className="h-full bg-card w-[280px] border-r border-border flex flex-col">
       <div className="p-6 flex items-center">
-        <Users className="h-6 w-6 text-primary mr-2" />
-        <h1 className="text-xl font-semibold">LeadFlow CRM</h1>
+        <img src="/logo.png" alt="Indian School of Skills Logo" className="h-10 mr-2" />
       </div>
       
       <nav className="flex-1 px-3 py-2">

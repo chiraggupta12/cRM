@@ -6,7 +6,7 @@ import { Loader2 } from 'lucide-react';
 type AuthContextType = {
   user: User | null;
   loading: boolean;
-  signIn: (email: string, password: string) => Promise<void>;
+  signIn: (email: string, password: string) => Promise<{ data: any; error: any }>;
   signUp: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
 };
@@ -37,7 +37,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const signIn = async (email: string, password: string) => {
-    await supabase.auth.signInWithPassword({ email, password });
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    return { data, error };
   };
 
   const signUp = async (email: string, password: string) => {

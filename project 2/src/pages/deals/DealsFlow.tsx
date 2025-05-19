@@ -5,18 +5,34 @@ import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Plus, Loader2 } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { format } from 'date-fns';
 
 interface Lead {
   id: string;
-  title: string;
+  created_at: string;
+  user_id: string;
+  academic_councellor: string | null;
+  full_name: string;
   source: string;
   status: string;
-  value: number;
-  description: string | null;
-  created_at: string;
+  revenue: number | null;
+  notes: string | null;
+  email: string;
+  phone_number: string;
+  name: string;
+  specialization: string | null;
+  batch_date: string | null;
+  job_title: string | null;
 }
 
-const statuses = ['New', 'Contacted', 'Qualified', 'Negotiation', 'Closed', 'Lost'];
+const statuses = [
+  'New Lead',
+  'Qualified',
+  'Prospecting',
+  'Paid',
+  'Lost Lead',
+  'Junk Lead',
+];
 
 const DealsFlow: React.FC = () => {
   const { user } = useAuth();
@@ -107,22 +123,22 @@ const DealsFlow: React.FC = () => {
         </Link>
       </div>
       
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4">
         {statuses.map(status => (
           <div
             key={status}
-            className="bg-card rounded-lg shadow-sm border border-border"
+            className="bg-card rounded-lg shadow-sm border border-border flex flex-col"
             onDragOver={handleDragOver}
             onDrop={(e) => handleDrop(e, status)}
           >
             <div className="p-3 border-b border-border bg-muted/30">
-              <h3 className="font-semibold">{status}</h3>
+              <h3 className="font-semibold text-lg">{status}</h3>
               <p className="text-sm text-muted-foreground">
                 {leads.filter(lead => lead.status === status).length} leads
               </p>
             </div>
             
-            <div className="p-2">
+            <div className="p-3 flex-1 overflow-y-auto space-y-3">
               {leads
                 .filter(lead => lead.status === status)
                 .map(lead => (
@@ -131,14 +147,27 @@ const DealsFlow: React.FC = () => {
                     layoutId={lead.id}
                     draggable
                     onDragStart={(e) => handleDragStart(e, lead.id)}
-                    className="bg-white p-3 rounded-md shadow-sm border border-border mb-2 cursor-move hover:shadow-md transition-shadow"
+                    className="bg-white p-3 rounded-md shadow-md border border-border cursor-move hover:shadow-lg transition-shadow space-y-1"
                   >
-                    <Link to={`/leads/${lead.id}`}>
-                      <h4 className="font-medium mb-1">{lead.title}</h4>
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-muted-foreground">{lead.source}</span>
-                        <span className="font-medium">₹{lead.value.toLocaleString()}</span>
-                      </div>
+                    <Link to={`/leads/${lead.id}`} className="block">
+                      {lead.specialization && (
+                        <span className="inline-block text-white text-xs font-medium mr-2 px-1 py-0.5 rounded-full mb-1 whitespace-nowrap overflow-hidden text-ellipsis" style={{ backgroundColor: '#8c0308' }}>
+                          {lead.specialization}
+                        </span>
+                      )}
+                      <h4 className="font-bold text-sm text-foreground">{lead.full_name}</h4>
+                      
+                      {lead.job_title && (
+                        <p className="text-xs text-muted-foreground mt-1">{lead.job_title}</p>
+                      )}
+
+                      {lead.batch_date && (
+                           <p className="text-xs text-muted-foreground mt-1">Batch: {format(new Date(lead.batch_date), 'MMM d, yyyy')}</p>
+                         )}
+
+                      {lead.revenue !== null && lead.revenue !== undefined && lead.revenue > 0 && (
+                         <div className="mt-2 text-sm font-semibold text-primary">₹{lead.revenue.toLocaleString()}</div>
+                      )}
                     </Link>
                   </motion.div>
                 ))}

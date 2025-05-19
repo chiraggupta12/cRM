@@ -4,31 +4,32 @@ import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../lib/supabase';
 import { toast } from 'sonner';
 import { useForm } from 'react-hook-form';
-import { ArrowLeft, Save, Trash2, Plus, Loader2, User, Calendar, Check } from 'lucide-react';
+import { ArrowLeft, Save, Trash2, Plus, Loader2, User, Calendar, Check, Phone, Mail, MessageCircle } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { format } from 'date-fns';
 
 interface Lead {
   id: string;
-  title: string;
+  created_at: string;
+  user_id: string;
+  academic_councellor: string | null;
+  full_name: string;
   source: string;
   status: string;
-  value: number | null;
-  description: string | null;
-  created_at: string;
-}
-
-interface Contact {
-  id: string;
-  name: string;
+  revenue: number | null;
+  notes: string | null;
   email: string;
-  phone: string;
-  company: string | null;
-  position: string | null;
+  phone_number: string;
+  name: string;
+  specialization: string | null;
+  batch_date: string | null;
+  job_title: string | null;
 }
 
 interface Activity {
   id: string;
+  lead_id: string;
+  user_id: string;
   type: string;
   notes: string | null;
   scheduled_at: string | null;
@@ -37,11 +38,16 @@ interface Activity {
 }
 
 interface FormValues {
-  title: string;
+  full_name: string;
   source: string;
   status: string;
-  value: string;
-  description: string;
+  revenue: string;
+  notes: string;
+  email: string;
+  phone_number: string;
+  specialization: string;
+  batch_date: string;
+  job_title: string;
 }
 
 interface ActivityFormValues {
@@ -56,7 +62,6 @@ const LeadDetails: React.FC = () => {
   const navigate = useNavigate();
   
   const [lead, setLead] = useState<Lead | null>(null);
-  const [contacts, setContacts] = useState<Contact[]>([]);
   const [activities, setActivities] = useState<Activity[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -88,12 +93,13 @@ const LeadDetails: React.FC = () => {
   ];
 
   const statuses = [
-    'New',
-    'Contacted',
+    'New Lead',
+    'Junk Lead',
+    'Prospecting',
     'Qualified',
-    'Negotiation',
-    'Closed',
-    'Lost',
+    'Paid',
+    'Lost Lead',
+    'Postpone',
   ];
   
   const activityTypes = [
@@ -106,6 +112,14 @@ const LeadDetails: React.FC = () => {
     'Other',
   ];
 
+  const specializationOptions = [
+    '',
+    'Product Management',
+    'Digital Marketing',
+    'Cyber Security',
+    'Data Science',
+  ];
+
   useEffect(() => {
     if (!id || !user) return;
     
@@ -113,7 +127,6 @@ const LeadDetails: React.FC = () => {
       try {
         setLoading(true);
         
-        // Fetch lead
         const { data: leadData, error: leadError } = await supabase
           .from('leads')
           .select('*')
@@ -125,25 +138,18 @@ const LeadDetails: React.FC = () => {
         
         setLead(leadData);
         reset({
-          title: leadData.title,
+          full_name: leadData.full_name,
           source: leadData.source,
           status: leadData.status,
-          value: leadData.value?.toString() || '',
-          description: leadData.description || '',
+          revenue: leadData.revenue?.toString() || '',
+          notes: leadData.notes || '',
+          email: leadData.email || '',
+          phone_number: leadData.phone_number || '',
+          specialization: leadData.specialization || '',
+          batch_date: leadData.batch_date || '',
+          job_title: leadData.job_title || '',
         });
         
-        // Fetch contacts
-        const { data: contactsData, error: contactsError } = await supabase
-          .from('contacts')
-          .select('*')
-          .eq('lead_id', id)
-          .eq('user_id', user.id);
-          
-        if (contactsError) throw contactsError;
-        
-        setContacts(contactsData || []);
-        
-        // Fetch activities
         const { data: activitiesData, error: activitiesError } = await supabase
           .from('activities')
           .select('*')
@@ -175,11 +181,16 @@ const LeadDetails: React.FC = () => {
       const { error } = await supabase
         .from('leads')
         .update({
-          title: data.title,
+          full_name: data.full_name,
           source: data.source,
           status: data.status,
-          value: data.value ? parseFloat(data.value) : 0,
-          description: data.description,
+          revenue: data.revenue ? parseFloat(data.revenue) : null,
+          notes: data.notes,
+          email: data.email,
+          phone_number: data.phone_number,
+          specialization: data.specialization || null,
+          batch_date: data.batch_date || null,
+          job_title: data.job_title || null,
         })
         .eq('id', id)
         .eq('user_id', user.id);
@@ -189,11 +200,16 @@ const LeadDetails: React.FC = () => {
       if (lead) {
         setLead({
           ...lead,
-          title: data.title,
+          full_name: data.full_name,
           source: data.source,
           status: data.status,
-          value: data.value ? parseFloat(data.value) : 0,
-          description: data.description,
+          revenue: data.revenue ? parseFloat(data.revenue) : null,
+          notes: data.notes,
+          email: data.email,
+          phone_number: data.phone_number,
+          specialization: data.specialization || null,
+          batch_date: data.batch_date || null,
+          job_title: data.job_title || null,
         });
       }
       
@@ -249,7 +265,6 @@ const LeadDetails: React.FC = () => {
         
       if (error) throw error;
       
-      // Refresh activities
       const { data: newActivities, error: fetchError } = await supabase
         .from('activities')
         .select('*')
@@ -294,16 +309,20 @@ const LeadDetails: React.FC = () => {
 
   const getStatusColor = (status: string) => {
     switch (status.toLowerCase()) {
-      case 'new':
-        return 'badge-primary';
-      case 'qualified':
-        return 'badge-secondary';
-      case 'negotiation':
-        return 'badge-warning';
-      case 'closed':
-        return 'badge-success';
-      case 'lost':
+      case 'new lead':
+        return 'badge-outline';
+      case 'junk lead':
         return 'badge-destructive';
+      case 'prospecting':
+        return 'badge-warning';
+      case 'qualified':
+        return 'badge-warning';
+      case 'paid':
+        return 'badge-success';
+      case 'lost lead':
+        return 'badge-destructive';
+      case 'postpone':
+        return 'badge-primary';
       default:
         return 'badge-outline';
     }
@@ -360,328 +379,356 @@ const LeadDetails: React.FC = () => {
 
   return (
     <div className="py-6">
-      <div className="flex items-center mb-6">
-        <button 
-          onClick={() => navigate(-1)}
-          className="p-2 mr-2 rounded-md hover:bg-muted transition-colors"
-        >
-          <ArrowLeft className="h-5 w-5" />
-        </button>
-        <div>
-          <h1 className="text-2xl font-bold">{lead.title}</h1>
-          <div className="flex items-center gap-2 mt-1">
-            <span className={`badge ${getStatusColor(lead.status)}`}>
-              {lead.status}
-            </span>
-            <span className="text-sm text-muted-foreground">
-              Created on {format(new Date(lead.created_at), 'MMM d, yyyy')}
-            </span>
+      {/* Header Section with Lead Info */}
+      <div className="mb-6">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center space-x-4">
+            <Link to="/leads" className="btn btn-ghost btn-sm">
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Back to Leads
+            </Link>
+            <h1 className="text-2xl font-bold">{lead.full_name}</h1>
+          </div>
+          <div className="flex items-center space-x-2">
+            <button
+              onClick={handleSubmit(onSubmit)}
+              disabled={saving}
+              className="btn btn-primary"
+            >
+              {saving ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <Save className="h-4 w-4 mr-2" />
+              )}
+              Save Changes
+            </button>
+            <button
+              onClick={deleteLead}
+              disabled={saving}
+              className="btn btn-destructive"
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              Delete Lead
+            </button>
+          </div>
+        </div>
+
+        {/* Lead Status and Info Bar */}
+        <div className="bg-card rounded-lg shadow-sm border border-border p-4">
+          <div className="flex flex-wrap items-center gap-4">
+            <div className="flex items-center space-x-2">
+              <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+                lead.status === 'New Lead' ? 'bg-blue-100 text-blue-800' :
+                lead.status === 'Junk Lead' ? 'bg-red-100 text-red-800' :
+                lead.status === 'Prospecting' ? 'bg-yellow-100 text-yellow-800' :
+                lead.status === 'Qualified' ? 'bg-orange-100 text-orange-800' :
+                lead.status === 'Paid' ? 'bg-green-100 text-green-800' :
+                lead.status === 'Lost Lead' ? 'bg-red-100 text-red-800' :
+                'bg-purple-100 text-purple-800'
+              }`}>
+                {lead.status}
+              </span>
+            </div>
+
+            <div className="flex items-center space-x-4 text-sm text-muted-foreground">
+              <div className="flex items-center">
+                <Calendar className="h-4 w-4 mr-1" />
+                Created: {format(new Date(lead.created_at), 'MMM d, yyyy')}
+              </div>
+              {lead.batch_date && (
+                <div className="flex items-center">
+                  <User className="h-4 w-4 mr-1" />
+                  Batch: {format(new Date(lead.batch_date), 'MMM d, yyyy')}
+                </div>
+              )}
+              {lead.specialization && (
+                <div className="flex items-center">
+                  <Check className="h-4 w-4 mr-1" />
+                  {lead.specialization}
+                </div>
+              )}
+            </div>
+
+            <div className="flex items-center space-x-2 ml-auto">
+              {lead.phone_number && (
+                <a
+                  href={`tel:${lead.phone_number}`}
+                  className="btn btn-outline btn-sm"
+                >
+                  <Phone className="h-4 w-4 mr-1" />
+                  Call
+                </a>
+              )}
+              {lead.phone_number && (
+                <a
+                  href={`https://wa.me/${lead.phone_number.replace(/[^\d]/g, '')}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn btn-outline btn-sm"
+                >
+                  <MessageCircle className="h-4 w-4 mr-1" />
+                  WhatsApp
+                </a>
+              )}
+              {lead.email && (
+                <a
+                  href={`mailto:${lead.email}`}
+                  className="btn btn-outline btn-sm"
+                >
+                  <Mail className="h-4 w-4 mr-1" />
+                  Email
+                </a>
+              )}
+            </div>
           </div>
         </div>
       </div>
-      
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <motion.div 
-          className="bg-card rounded-lg shadow-sm border border-border col-span-1 lg:col-span-2"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3 }}
-        >
-          <div className="p-6 border-b border-border">
-            <h2 className="text-lg font-semibold">Lead Information</h2>
-          </div>
-          
-          <form onSubmit={handleSubmit(onSubmit)} className="p-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-foreground mb-1">
-                    Title <span className="text-destructive">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    {...register('title', { required: 'Title is required' })}
-                    className="input"
-                  />
-                  {errors.title && (
-                    <p className="mt-1 text-xs text-destructive">{errors.title.message}</p>
-                  )}
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-foreground mb-1">
-                    Source <span className="text-destructive">*</span>
-                  </label>
-                  <select
-                    {...register('source', { required: 'Source is required' })}
-                    className="input"
-                  >
-                    <option value="">Select source</option>
-                    {sources.map(source => (
-                      <option key={source} value={source}>{source}</option>
-                    ))}
-                  </select>
-                  {errors.source && (
-                    <p className="mt-1 text-xs text-destructive">{errors.source.message}</p>
-                  )}
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-foreground mb-1">
-                    Status <span className="text-destructive">*</span>
-                  </label>
-                  <select
-                    {...register('status', { required: 'Status is required' })}
-                    className="input"
-                  >
-                    <option value="">Select status</option>
-                    {statuses.map(status => (
-                      <option key={status} value={status}>{status}</option>
-                    ))}
-                  </select>
-                  {errors.status && (
-                    <p className="mt-1 text-xs text-destructive">{errors.status.message}</p>
-                  )}
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-foreground mb-1">
-                    Value ($)
-                  </label>
-                  <input
-                    type="number"
-                    {...register('value')}
-                    className="input"
-                    placeholder="0.00"
-                    min="0"
-                    step="0.01"
-                  />
-                </div>
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-1">
-                  Description
-                </label>
-                <textarea
-                  {...register('description')}
-                  className="input !h-full min-h-[180px]"
-                />
-              </div>
-            </div>
-            
-            <div className="mt-6 flex justify-between">
-              <button
-                type="button"
-                onClick={deleteLead}
-                className="btn btn-outline text-destructive hover:bg-destructive hover:text-white"
-                disabled={saving}
-              >
-                <Trash2 className="h-4 w-4 mr-2" />
-                Delete Lead
-              </button>
-              
-              <button
-                type="submit"
-                className="btn btn-primary"
-                disabled={saving}
-              >
-                {saving ? (
-                  <>
-                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                    Saving...
-                  </>
-                ) : (
-                  <>
-                    <Save className="h-4 w-4 mr-2" />
-                    Save Changes
-                  </>
-                )}
-              </button>
-            </div>
-          </form>
-        </motion.div>
-        
-        <motion.div 
-          className="space-y-6 lg:col-span-1"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3, delay: 0.1 }}
-        >
-          <div className="bg-card rounded-lg shadow-sm border border-border">
-            <div className="p-4 border-b border-border flex items-center justify-between">
-              <h2 className="text-lg font-semibold">Contact Information</h2>
-              <Link to={`/contacts/new?leadId=${id}`} className="btn btn-sm btn-outline">
-                <Plus className="h-4 w-4 mr-1" />
-                Add
-              </Link>
-            </div>
-            
-            <div className="p-4">
-              {contacts.length === 0 ? (
-                <div className="text-center py-4">
-                  <User className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
-                  <p className="text-muted-foreground">No contacts added yet</p>
-                  <Link to={`/contacts/new?leadId=${id}`} className="text-primary hover:underline text-sm block mt-1">
-                    Add a contact
-                  </Link>
-                </div>
-              ) : (
-                <ul className="space-y-3">
-                  {contacts.map(contact => (
-                    <li key={contact.id} className="border border-border rounded-md p-3">
-                      <Link to={`/contacts/${contact.id}`} className="block hover:bg-muted transition-colors -m-3 p-3">
-                        <p className="font-medium">{contact.name}</p>
-                        <p className="text-sm text-muted-foreground">{contact.email}</p>
-                        {contact.phone && (
-                          <p className="text-sm text-muted-foreground">{contact.phone}</p>
-                        )}
-                        {(contact.company || contact.position) && (
-                          <p className="text-sm text-muted-foreground mt-1">
-                            {contact.position}{contact.position && contact.company ? ' at ' : ''}
-                            {contact.company}
-                          </p>
-                        )}
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          </div>
-          
-          <div className="bg-card rounded-lg shadow-sm border border-border">
-            <div className="p-4 border-b border-border flex items-center justify-between">
-              <h2 className="text-lg font-semibold">Activities</h2>
-              <button 
-                onClick={() => setShowActivityForm(!showActivityForm)}
-                className="btn btn-sm btn-outline"
-              >
-                <Plus className="h-4 w-4 mr-1" />
-                Add
-              </button>
-            </div>
-            
-            {showActivityForm && (
-              <div className="p-4 border-b border-border bg-muted/30">
-                <form onSubmit={handleSubmitActivity(addActivity)} className="space-y-3">
+
+      {loading ? (
+        <div className="flex items-center justify-center h-64">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Main Form Section */}
+          <div className="lg:col-span-2 space-y-6">
+            <div className="bg-card rounded-lg shadow-sm border border-border p-6">
+              <h2 className="text-lg font-semibold mb-4">Lead Information</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Personal Information Group */}
+                <div className="space-y-4">
                   <div>
                     <label className="block text-sm font-medium text-foreground mb-1">
-                      Type <span className="text-destructive">*</span>
+                      Full Name <span className="text-destructive">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      {...register('full_name', { required: 'Full name is required' })}
+                      className="w-full px-3 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50"
+                    />
+                    {errors.full_name && (
+                      <p className="text-destructive text-sm mt-1">{errors.full_name.message}</p>
+                    )}
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-foreground mb-1">
+                      Email <span className="text-destructive">*</span>
+                    </label>
+                    <input
+                      type="email"
+                      {...register('email', { required: 'Email is required' })}
+                      className="w-full px-3 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50"
+                    />
+                    {errors.email && (
+                      <p className="text-destructive text-sm mt-1">{errors.email.message}</p>
+                    )}
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-foreground mb-1">
+                      Phone Number <span className="text-destructive">*</span>
+                    </label>
+                    <input
+                      type="tel"
+                      {...register('phone_number', { required: 'Phone number is required' })}
+                      className="w-full px-3 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50"
+                    />
+                    {errors.phone_number && (
+                      <p className="text-destructive text-sm mt-1">{errors.phone_number.message}</p>
+                    )}
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-foreground mb-1">
+                      Job Title
+                    </label>
+                    <input
+                      type="text"
+                      {...register('job_title')}
+                      className="w-full px-3 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50"
+                    />
+                  </div>
+                </div>
+
+                {/* Lead Details Group */}
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-foreground mb-1">
+                      Source <span className="text-destructive">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      {...register('source', { required: 'Source is required' })}
+                      className="w-full px-3 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50"
+                    />
+                    {errors.source && (
+                      <p className="text-destructive text-sm mt-1">{errors.source.message}</p>
+                    )}
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-foreground mb-1">
+                      Status <span className="text-destructive">*</span>
                     </label>
                     <select
-                      {...registerActivity('type', { required: 'Type is required' })}
-                      className="input"
+                      {...register('status', { required: 'Status is required' })}
+                      className="w-full px-3 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50"
                     >
-                      <option value="">Select type</option>
-                      {activityTypes.map(type => (
-                        <option key={type} value={type}>{type}</option>
+                      {statuses.map((status) => (
+                        <option key={status} value={status}>
+                          {status}
+                        </option>
+                      ))}
+                    </select>
+                    {errors.status && (
+                      <p className="text-destructive text-sm mt-1">{errors.status.message}</p>
+                    )}
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-foreground mb-1">
+                      Revenue (₹)
+                    </label>
+                    <input
+                      type="number"
+                      {...register('revenue')}
+                      className="w-full px-3 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-foreground mb-1">
+                      Specialization
+                    </label>
+                    <select
+                      {...register('specialization')}
+                      className="w-full px-3 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50"
+                    >
+                      {specializationOptions.map((option) => (
+                        <option key={option} value={option}>
+                          {option || 'Select Specialization'}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Notes Section */}
+            <div className="bg-card rounded-lg shadow-sm border border-border p-6">
+              <h2 className="text-lg font-semibold mb-4">Notes</h2>
+              <textarea
+                {...register('notes')}
+                className="w-full px-3 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50 min-h-[120px]"
+                placeholder="Add notes about this lead..."
+              />
+            </div>
+          </div>
+
+          {/* Activities Section */}
+          <div className="lg:col-span-1">
+            <div className="bg-card rounded-lg shadow-sm border border-border p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-semibold">Activities</h2>
+                <button
+                  onClick={() => setShowActivityForm(!showActivityForm)}
+                  className="btn btn-ghost btn-sm"
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Activity
+                </button>
+              </div>
+
+              {showActivityForm && (
+                <form onSubmit={handleSubmitActivity(addActivity)} className="space-y-4 mb-6">
+                  <div>
+                    <label className="block text-sm font-medium text-foreground mb-1">
+                      Activity Type <span className="text-destructive">*</span>
+                    </label>
+                    <select
+                      {...registerActivity('type', { required: 'Activity type is required' })}
+                      className="w-full px-3 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50"
+                    >
+                      {activityTypes.map((type) => (
+                        <option key={type} value={type}>
+                          {type}
+                        </option>
                       ))}
                     </select>
                     {activityErrors.type && (
-                      <p className="mt-1 text-xs text-destructive">{activityErrors.type.message}</p>
+                      <p className="text-destructive text-sm mt-1">{activityErrors.type.message}</p>
                     )}
                   </div>
-                  
+
                   <div>
                     <label className="block text-sm font-medium text-foreground mb-1">
-                      Notes
+                      Notes <span className="text-destructive">*</span>
                     </label>
                     <textarea
-                      {...registerActivity('notes')}
-                      className="input min-h-[80px]"
-                      placeholder="Activity details..."
+                      {...registerActivity('notes', { required: 'Notes are required' })}
+                      className="w-full px-3 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50 min-h-[80px]"
                     />
+                    {activityErrors.notes && (
+                      <p className="text-destructive text-sm mt-1">{activityErrors.notes.message}</p>
+                    )}
                   </div>
-                  
+
                   <div>
                     <label className="block text-sm font-medium text-foreground mb-1">
-                      Scheduled Date
+                      Scheduled Date <span className="text-destructive">*</span>
                     </label>
                     <input
                       type="datetime-local"
-                      {...registerActivity('scheduled_at')}
-                      className="input"
+                      {...registerActivity('scheduled_at', { required: 'Scheduled date is required' })}
+                      className="w-full px-3 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50"
                     />
+                    {activityErrors.scheduled_at && (
+                      <p className="text-destructive text-sm mt-1">{activityErrors.scheduled_at.message}</p>
+                    )}
                   </div>
-                  
-                  <div className="flex justify-end space-x-2">
-                    <button
-                      type="button"
-                      onClick={() => setShowActivityForm(false)}
-                      className="btn btn-sm btn-outline"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type="submit"
-                      className="btn btn-sm btn-primary"
-                    >
-                      Add Activity
-                    </button>
-                  </div>
-                </form>
-              </div>
-            )}
-            
-            <div className="p-4">
-              {activities.length === 0 ? (
-                <div className="text-center py-4">
-                  <Calendar className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
-                  <p className="text-muted-foreground">No activities recorded yet</p>
-                  <button 
-                    onClick={() => setShowActivityForm(true)}
-                    className="text-primary hover:underline text-sm block mt-1 mx-auto"
-                  >
-                    Add an activity
+
+                  <button type="submit" className="btn btn-primary w-full">
+                    Add Activity
                   </button>
-                </div>
-              ) : (
-                <ul className="space-y-3">
-                  {activities.map(activity => (
-                    <li key={activity.id} className="border border-border rounded-md p-3 relative">
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <div className="flex items-center">
-                            <span className="badge badge-outline mr-2">{activity.type}</span>
-                            {activity.completed && (
-                              <span className="badge badge-success">Completed</span>
-                            )}
-                          </div>
-                          
-                          {activity.notes && (
-                            <p className="text-sm mt-2">{activity.notes}</p>
-                          )}
-                          
-                          <div className="flex items-center mt-2 text-xs text-muted-foreground">
-                            <span>Created: {format(new Date(activity.created_at), 'MMM d, yyyy')}</span>
-                            {activity.scheduled_at && (
-                              <span className="ml-3">
-                                Due: {format(new Date(activity.scheduled_at), 'MMM d, yyyy')}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                        
+                </form>
+              )}
+
+              <div className="space-y-4">
+                {activities.map((activity) => (
+                  <div
+                    key={activity.id}
+                    className="flex items-start space-x-4 p-4 bg-muted/50 rounded-lg border border-border"
+                  >
+                    <div className="flex-1">
+                      <div className="flex items-center justify-between">
+                        <h3 className="font-medium">{activity.type}</h3>
                         <button
-                          onClick={() => toggleActivityCompletion(activity.id, activity.completed)}
-                          className={`p-2 rounded-md ${
-                            activity.completed 
-                              ? 'bg-success/10 text-success hover:bg-success/20' 
-                              : 'bg-muted text-muted-foreground hover:bg-muted/70'
-                          } transition-colors`}
+                          onClick={() => toggleActivityCompletion(activity.id, !activity.completed)}
+                          className={`btn btn-sm ${
+                            activity.completed ? 'btn-success' : 'btn-ghost'
+                          }`}
                         >
-                          <Check className="h-4 w-4" />
+                          {activity.completed ? (
+                            <Check className="h-4 w-4" />
+                          ) : (
+                            <Calendar className="h-4 w-4" />
+                          )}
                         </button>
                       </div>
-                    </li>
-                  ))}
-                </ul>
-              )}
+                      <p className="text-sm text-muted-foreground mt-1">{activity.notes}</p>
+                      <p className="text-xs text-muted-foreground mt-2">
+                        {format(new Date(activity.scheduled_at || activity.created_at), 'PPp')}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
-        </motion.div>
-      </div>
+        </div>
+      )}
     </div>
   );
 };

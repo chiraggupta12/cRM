@@ -9,9 +9,6 @@ import Register from './pages/auth/Register';
 import Leads from './pages/leads/Leads';
 import LeadDetails from './pages/leads/LeadDetails';
 import NewLead from './pages/leads/NewLead';
-import Contacts from './pages/contacts/Contacts';
-import NewContact from './pages/contacts/NewContact';
-import ContactDetails from './pages/contacts/ContactDetails';
 import Forms from './pages/forms/Forms';
 import DealsFlow from './pages/deals/DealsFlow';
 import Layout from './components/Layout';
@@ -38,9 +35,6 @@ function App() {
         <Route path="leads/new" element={<NewLead />} />
         <Route path="leads/:id" element={<LeadDetails />} />
         <Route path="deals" element={<DealsFlow />} />
-        <Route path="contacts" element={<Contacts />} />
-        <Route path="contacts/new" element={<NewContact />} />
-        <Route path="contacts/:id" element={<ContactDetails />} />
         <Route path="forms" element={<Forms />} />
       </Route>
       
