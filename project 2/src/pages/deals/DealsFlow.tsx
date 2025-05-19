@@ -151,7 +151,7 @@ const DealsFlow: React.FC = () => {
                   >
                     <Link to={`/leads/${lead.id}`} className="block">
                       {lead.specialization && (
-                        <span className="inline-block text-white text-xs font-medium mr-2 px-1 py-0.5 rounded-full mb-1 whitespace-nowrap overflow-hidden text-ellipsis" style={{ backgroundColor: '#8c0308' }}>
+                        <span className="inline-block bg-gray-100 text-gray-700 text-xs font-medium mr-2 px-1 py-0.5 rounded-full mb-0 whitespace-nowrap overflow-hidden text-ellipsis">
                           {lead.specialization}
                         </span>
                       )}
