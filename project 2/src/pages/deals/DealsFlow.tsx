@@ -157,16 +157,20 @@ const DealsFlow: React.FC = () => {
                       )}
                       <h4 className="font-bold text-sm text-foreground">{lead.full_name}</h4>
                       
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Created: {format(new Date(lead.created_at), 'MMM d, yyyy')}
+                      </p>
+                      
                       {lead.job_title && (
                         <p className="text-xs text-muted-foreground mt-1">{lead.job_title}</p>
                       )}
 
                       {lead.batch_date && (
-                           <p className="text-xs text-muted-foreground mt-1">Batch: {format(new Date(lead.batch_date), 'MMM d, yyyy')}</p>
-                         )}
+                        <p className="text-xs text-muted-foreground mt-1">Batch: {format(new Date(lead.batch_date), 'MMM d, yyyy')}</p>
+                      )}
 
                       {lead.revenue !== null && lead.revenue !== undefined && lead.revenue > 0 && (
-                         <div className="mt-2 text-sm font-semibold text-primary">₹{lead.revenue.toLocaleString()}</div>
+                        <div className="mt-2 text-sm font-semibold text-primary">₹{lead.revenue.toLocaleString('en-IN')}</div>
                       )}
                     </Link>
                   </motion.div>

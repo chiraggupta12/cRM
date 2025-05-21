@@ -6,7 +6,6 @@ import { toast } from 'sonner';
 import { Plus, Search, Filter, MoreVertical, Edit, Trash2, Phone, MessageCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { format } from 'date-fns';
-import { cn } from '../../utils/cn';
 
 interface Lead {
   id: string;
@@ -42,6 +41,9 @@ const Leads: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState<string>('');
+  const [sortField, setSortField] = useState<keyof Lead>('created_at');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
+  const [filters, setFilters] = useState<{[key: string]: string}>({});
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -58,7 +60,7 @@ const Leads: React.FC = () => {
         .from('leads')
         .select('*')
         .eq('user_id', user.id)
-        .order('created_at', { ascending: false });
+        .order(sortField, { ascending: sortDirection === 'asc' });
         
       if (filterStatus) {
         query = query.eq('status', filterStatus);
@@ -98,11 +100,51 @@ const Leads: React.FC = () => {
     setOpenMenuId(openMenuId === id ? null : id);
   };
 
-  const filteredLeads = leads.filter(lead => 
-    lead.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    lead.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    lead.phone_number?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const handleSort = (field: keyof Lead) => {
+    setSortDirection(current => {
+      if (sortField === field) {
+        return current === 'asc' ? 'desc' : 'asc';
+      }
+      return 'desc';
+    });
+    setSortField(field);
+  };
+
+  const handleFilterChange = (field: string, value: string) => {
+    setFilters(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
+  const clearFilter = (field: string) => {
+    const newFilters = {...filters};
+    delete newFilters[field];
+    setFilters(newFilters);
+  };
+
+  const filteredLeads = leads.filter(lead => {
+    // Apply search term filter
+    const matchesSearch = 
+      lead.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (lead.email || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (lead.phone_number || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (lead.specialization || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (lead.source || '').toLowerCase().includes(searchTerm.toLowerCase());
+    
+    // Apply status filter
+    const matchesStatus = filterStatus ? lead.status === filterStatus : true;
+    
+    // Apply column filters
+    const matchesFilters = Object.entries(filters).every(([field, value]) => {
+      if (!value) return true;
+      const fieldValue = lead[field as keyof Lead];
+      if (fieldValue === null || fieldValue === undefined) return false;
+      return fieldValue.toString().toLowerCase().includes(value.toLowerCase());
+    });
+    
+    return matchesSearch && matchesStatus && matchesFilters;
+  });
 
   const getStatusColor = (status: string) => {
     switch (status.toLowerCase()) {
@@ -203,36 +245,113 @@ const Leads: React.FC = () => {
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
               <thead>
-                <tr className="bg-gray-100">
-                  <th scope="col" className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                    Full Name
+                <tr className="bg-gray-100 text-gray-600 text-xs leading-normal">
+                  <th 
+                    className="py-3 px-6 text-left cursor-pointer hover:bg-gray-200"
+                    onClick={() => handleSort('created_at')}
+                  >
+                    Created Date {sortField === 'created_at' && (sortDirection === 'asc' ? '↑' : '↓')}
                   </th>
-                  <th scope="col" className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                    Email
+                  <th 
+                    className="py-3 px-6 text-left cursor-pointer hover:bg-gray-200"
+                    onClick={() => handleSort('full_name')}
+                  >
+                    Name {sortField === 'full_name' && (sortDirection === 'asc' ? '↑' : '↓')}
                   </th>
-                  <th scope="col" className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                    Phone
+                  <th className="px-6 py-4 text-left">
+                    <div className="text-xs font-semibold text-gray-600 uppercase tracking-wider">Email</div>
+                    <input
+                      type="text"
+                      placeholder="Filter email..."
+                      value={filters.email || ''}
+                      onChange={(e) => handleFilterChange('email', e.target.value)}
+                      className="mt-1 w-full text-sm border rounded p-1"
+                    />
                   </th>
-                  <th scope="col" className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                    Call
+                  <th className="px-6 py-4 text-left">
+                    <div className="text-xs font-semibold text-gray-600 uppercase tracking-wider">Phone</div>
+                    <input
+                      type="text"
+                      placeholder="Filter phone..."
+                      value={filters.phone_number || ''}
+                      onChange={(e) => handleFilterChange('phone_number', e.target.value)}
+                      className="mt-1 w-full text-sm border rounded p-1"
+                    />
                   </th>
-                  <th scope="col" className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                    WhatsApp
+                  <th className="px-6 py-4 text-center">
+                    <div className="text-xs font-semibold text-gray-600 uppercase tracking-wider">Call</div>
                   </th>
-                  <th scope="col" className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                    Specialization
+                  <th className="px-6 py-4 text-center">
+                    <div className="text-xs font-semibold text-gray-600 uppercase tracking-wider">WhatsApp</div>
                   </th>
-                  <th scope="col" className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                    Source
+                  <th className="px-6 py-4 text-left">
+                    <div className="text-xs font-semibold text-gray-600 uppercase tracking-wider">Specialization</div>
+                    <select
+                      value={filters.specialization || ''}
+                      onChange={(e) => handleFilterChange('specialization', e.target.value)}
+                      className="mt-1 w-full text-sm border rounded p-1"
+                    >
+                      <option value="">All</option>
+                      {Array.from(new Set(leads.map(l => l.specialization).filter(Boolean))).map(spec => (
+                        <option key={spec} value={spec || ''}>{spec}</option>
+                      ))}
+                    </select>
                   </th>
-                  <th scope="col" className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                    Status
+                  <th className="px-6 py-4 text-left">
+                    <div className="text-xs font-semibold text-gray-600 uppercase tracking-wider">Source</div>
+                    <select
+                      value={filters.source || ''}
+                      onChange={(e) => handleFilterChange('source', e.target.value)}
+                      className="mt-1 w-full text-sm border rounded p-1"
+                    >
+                      <option value="">All</option>
+                      {Array.from(new Set(leads.map(l => l.source).filter(Boolean))).map(source => (
+                        <option key={source} value={source || ''}>{source}</option>
+                      ))}
+                    </select>
                   </th>
-                  <th scope="col" className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                    Revenue
+                  <th className="px-6 py-4 text-left">
+                    <div className="text-xs font-semibold text-gray-600 uppercase tracking-wider">Status</div>
+                    <select
+                      value={filters.status || ''}
+                      onChange={(e) => handleFilterChange('status', e.target.value)}
+                      className="mt-1 w-full text-sm border rounded p-1"
+                    >
+                      <option value="">All</option>
+                      {statuses.map(status => (
+                        <option key={status} value={status}>{status}</option>
+                      ))}
+                    </select>
                   </th>
-                  <th scope="col" className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                    Batch Date
+                  <th className="px-6 py-4 text-left">
+                    <div className="text-xs font-semibold text-gray-600 uppercase tracking-wider">Revenue</div>
+                    <div className="flex gap-1 mt-1">
+                      <select
+                        value={filters.revenue_operator || ''}
+                        onChange={(e) => handleFilterChange('revenue_operator', e.target.value)}
+                        className="text-sm border rounded p-1 w-16"
+                      >
+                        <option value="">=</option>
+                        <option value="gt">&gt;</option>
+                        <option value="lt">&lt;</option>
+                      </select>
+                      <input
+                        type="number"
+                        placeholder="Amount"
+                        value={filters.revenue || ''}
+                        onChange={(e) => handleFilterChange('revenue', e.target.value)}
+                        className="w-20 text-sm border rounded p-1"
+                      />
+                    </div>
+                  </th>
+                  <th className="px-6 py-4 text-left">
+                    <div className="text-xs font-semibold text-gray-600 uppercase tracking-wider">Batch Date</div>
+                    <input
+                      type="date"
+                      value={filters.batch_date || ''}
+                      onChange={(e) => handleFilterChange('batch_date', e.target.value)}
+                      className="mt-1 w-full text-sm border rounded p-1"
+                    />
                   </th>
                   <th scope="col" className="px-6 py-4 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">
                     Actions
@@ -245,12 +364,26 @@ const Leads: React.FC = () => {
                 animate="show"
                 className="divide-y divide-gray-200 bg-white"
               >
-                {filteredLeads.map((lead) => (
+                {filteredLeads
+                  .sort((a, b) => {
+                    if (sortField === 'created_at') {
+                      return sortDirection === 'asc'
+                        ? new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+                        : new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+                    }
+                    return sortDirection === 'asc'
+                      ? a[sortField] > b[sortField] ? 1 : -1
+                      : a[sortField] < b[sortField] ? 1 : -1;
+                  })
+                  .map((lead) => (
                   <motion.tr 
                     key={lead.id} 
                     className="hover:bg-gray-50 transition-colors"
                     variants={item}
                   >
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {format(new Date(lead.created_at), 'dd MMM yyyy')}
+                    </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                       <Link to={`/leads/${lead.id}`} className="text-blue-600 hover:underline">
                         {lead.full_name}

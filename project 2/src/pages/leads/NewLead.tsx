@@ -15,7 +15,7 @@ interface FormValues {
   notes: string;
   email: string;
   phone_number: string;
-  name: string;
+
   specialization: string;
   batch_date: string;
   job_title: string;
@@ -76,7 +76,7 @@ const NewLead: React.FC = () => {
         notes: data.notes,
         email: data.email,
         phone_number: data.phone_number,
-        name: data.name,
+
         specialization: data.specialization || null,
         batch_date: data.batch_date || null,
         job_title: data.job_title || null,
@@ -183,19 +183,6 @@ const NewLead: React.FC = () => {
                 />
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-1">
-                  Contact Name <span className="text-destructive">*</span>
-                </label>
-                <input
-                  type="text"
-                  {...register('name', { required: 'Contact Name is required' })}
-                  className="input"
-                />
-                {errors.name && (
-                  <p className="mt-1 text-xs text-destructive">{errors.name.message}</p>
-                )}
-              </div>
 
               <div>
                 <label className="block text-sm font-medium text-foreground mb-1">
