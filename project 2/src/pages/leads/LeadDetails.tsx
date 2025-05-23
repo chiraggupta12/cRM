@@ -4,9 +4,19 @@ import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../lib/supabase';
 import { toast } from 'sonner';
 import { useForm } from 'react-hook-form';
-import { ArrowLeft, Save, Trash2, Plus, Loader2, User, Calendar, Check, Phone, Mail, MessageCircle } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { ArrowLeft, ArrowRight, Save, Trash2, Plus, Loader2, User, Calendar, Check, Phone, Mail, MessageCircle } from 'lucide-react';
 import { format } from 'date-fns';
+
+interface Comment {
+  id: string;
+  lead_id: string;
+  user_id: string;
+  content: string;
+  created_at: string;
+  user: {
+    email: string;
+  };
+}
 
 interface Lead {
   id: string;
@@ -24,6 +34,7 @@ interface Lead {
   specialization: string | null;
   batch_date: string | null;
   job_title: string | null;
+  comments?: Comment[];
 }
 
 interface Activity {
@@ -63,9 +74,11 @@ const LeadDetails: React.FC = () => {
   
   const [lead, setLead] = useState<Lead | null>(null);
   const [activities, setActivities] = useState<Activity[]>([]);
-  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [showActivityForm, setShowActivityForm] = useState(false);
+  const [nextLeadId, setNextLeadId] = useState<string | null>(null);
+  const [prevLeadId, setPrevLeadId] = useState<string | null>(null);
   
   const {
     register,
@@ -81,16 +94,7 @@ const LeadDetails: React.FC = () => {
     formState: { errors: activityErrors },
   } = useForm<ActivityFormValues>();
 
-  const sources = [
-    'Website',
-    'Referral',
-    'LinkedIn',
-    'Email Campaign',
-    'Facebook',
-    'Google',
-    'Conference',
-    'Other',
-  ];
+  // Sources are now managed in the form component
 
   const statuses = [
     'New Lead',
@@ -100,6 +104,7 @@ const LeadDetails: React.FC = () => {
     'Paid',
     'Lost Lead',
     'Postpone',
+    'Did not Pick'
   ];
   
   const activityTypes = [
@@ -119,6 +124,32 @@ const LeadDetails: React.FC = () => {
     'Cyber Security',
     'Data Science',
   ];
+
+  const deleteLead = async () => {
+    if (!id || !user) return;
+    
+    if (!confirm('Are you sure you want to delete this lead?')) return;
+    
+    try {
+      setSaving(true);
+      
+      const { error } = await supabase
+        .from('leads')
+        .delete()
+        .eq('id', id)
+        .eq('user_id', user.id);
+        
+      if (error) throw error;
+      
+      toast.success('Lead deleted successfully');
+      navigate('/leads');
+    } catch (error) {
+      console.error('Error deleting lead:', error);
+      toast.error('Failed to delete lead');
+    } finally {
+      setSaving(false);
+    }
+  };
 
   useEffect(() => {
     if (!id || !user) return;
@@ -147,30 +178,54 @@ const LeadDetails: React.FC = () => {
           phone_number: leadData.phone_number || '',
           specialization: leadData.specialization || '',
           batch_date: leadData.batch_date || '',
-          job_title: leadData.job_title || '',
+          job_title: leadData.job_title || ''
         });
         
+        // Fetch activities
         const { data: activitiesData, error: activitiesError } = await supabase
           .from('activities')
           .select('*')
           .eq('lead_id', id)
-          .eq('user_id', user.id)
           .order('created_at', { ascending: false });
           
         if (activitiesError) throw activitiesError;
         
         setActivities(activitiesData || []);
+        
+        // Find the next lead ID
+        const { data: nextLead } = await supabase
+          .from('leads')
+          .select('id')
+          .gt('created_at', leadData.created_at)
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: true })
+          .limit(1)
+          .single();
+          
+        setNextLeadId(nextLead?.id || null);
+        
+        // Find the previous lead ID
+        const { data: prevLead } = await supabase
+          .from('leads')
+          .select('id')
+          .lt('created_at', leadData.created_at)
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .single();
+          
+        setPrevLeadId(prevLead?.id || null);
+        
       } catch (error) {
         console.error('Error fetching lead details:', error);
         toast.error('Failed to load lead details');
-        navigate('/leads');
       } finally {
         setLoading(false);
       }
     };
     
     fetchLeadDetails();
-  }, [id, user, reset, navigate]);
+  }, [id, user]);
 
   const onSubmit = async (data: FormValues) => {
     if (!id || !user) return;
@@ -221,32 +276,26 @@ const LeadDetails: React.FC = () => {
       setSaving(false);
     }
   };
+  
 
-  const deleteLead = async () => {
-    if (!id || !user) return;
-    
-    if (!confirm('Are you sure you want to delete this lead?')) return;
-    
-    try {
-      setSaving(true);
-      
-      const { error } = await supabase
-        .from('leads')
-        .delete()
-        .eq('id', id)
-        .eq('user_id', user.id);
-        
-      if (error) throw error;
-      
-      toast.success('Lead deleted successfully');
-      navigate('/leads');
-    } catch (error) {
-      console.error('Error deleting lead:', error);
-      toast.error('Failed to delete lead');
-    } finally {
-      setSaving(false);
+  
+  const handleNextLead = () => {
+    if (nextLeadId) {
+      navigate(`/leads/${nextLeadId}`);
+    } else {
+      toast.info('This is the last lead');
     }
   };
+
+  const handlePrevLead = () => {
+    if (prevLeadId) {
+      navigate(`/leads/${prevLeadId}`);
+    } else {
+      toast.info('This is the first lead');
+    }
+  };
+
+
   
   const addActivity = async (data: ActivityFormValues) => {
     if (!id || !user) return;
@@ -307,27 +356,6 @@ const LeadDetails: React.FC = () => {
     }
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status.toLowerCase()) {
-      case 'new lead':
-        return 'badge-outline';
-      case 'junk lead':
-        return 'badge-destructive';
-      case 'prospecting':
-        return 'badge-warning';
-      case 'qualified':
-        return 'badge-warning';
-      case 'paid':
-        return 'badge-success';
-      case 'lost lead':
-        return 'badge-destructive';
-      case 'postpone':
-        return 'badge-primary';
-      default:
-        return 'badge-outline';
-    }
-  };
-
   if (loading) {
     return (
       <div className="py-6">
@@ -382,12 +410,14 @@ const LeadDetails: React.FC = () => {
       {/* Header Section with Lead Info */}
       <div className="mb-6">
         <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center space-x-4">
-            <Link to="/leads" className="btn btn-ghost btn-sm">
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Back to Leads
-            </Link>
-            <h1 className="text-2xl font-bold">{lead.full_name}</h1>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-4 space-y-2 sm:space-y-0">
+            <div className="flex items-center space-x-2">
+              <Link to="/leads" className="btn btn-ghost btn-sm">
+                <ArrowLeft className="h-4 w-4 mr-1" />
+                <span className="hidden sm:inline">Back to Leads</span>
+              </Link>
+              <h1 className="text-xl sm:text-2xl font-bold truncate">{lead.full_name}</h1>
+            </div>
           </div>
           <div className="flex items-center space-x-2">
             <button
@@ -396,19 +426,39 @@ const LeadDetails: React.FC = () => {
               className="btn btn-primary"
             >
               {saving ? (
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                <Loader2 className="h-4 w-4 mr-1 sm:mr-2 animate-spin" />
               ) : (
-                <Save className="h-4 w-4 mr-2" />
+                <Save className="h-4 w-4 mr-1 sm:mr-2" />
               )}
-              Save Changes
+              <span className="hidden sm:inline">Save</span>
             </button>
+            <div className="flex items-center space-x-1">
+              <button
+                onClick={handlePrevLead}
+                disabled={!prevLeadId}
+                className="btn btn-outline p-2 sm:px-3"
+                title="Previous lead"
+              >
+                <ArrowLeft className="h-4 w-4" />
+                <span className="sr-only sm:not-sr-only sm:ml-1">Prev</span>
+              </button>
+              <button
+                onClick={handleNextLead}
+                disabled={!nextLeadId}
+                className="btn btn-outline p-2 sm:px-3"
+                title="Next lead"
+              >
+                <ArrowRight className="h-4 w-4" />
+                <span className="sr-only sm:not-sr-only sm:ml-1">Next</span>
+              </button>
+            </div>
             <button
               onClick={deleteLead}
               disabled={saving}
               className="btn btn-destructive"
             >
-              <Trash2 className="h-4 w-4 mr-2" />
-              Delete Lead
+              <Trash2 className="h-4 w-4 mr-1 sm:mr-2" />
+              <span className="hidden sm:inline">Delete</span>
             </button>
           </div>
         </div>
@@ -627,8 +677,10 @@ const LeadDetails: React.FC = () => {
             </div>
           </div>
 
+
+
           {/* Activities Section */}
-          <div className="lg:col-span-1">
+          <div className="mt-8 lg:col-span-1">
             <div className="bg-card rounded-lg shadow-sm border border-border p-6">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-lg font-semibold">Activities</h2>
